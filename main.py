@@ -32,7 +32,9 @@ def get_img_data():
     for file in os.listdir(img_path):
         if file.endswith(".JPG"):
             data = gpsphoto.getGPSData(images + file)
-            image_coords.append(polar_to_cart(data['Altitude'], data['Latitude'], data['Longitude']))
+
+            if 'Altitude' and 'Latitude' and 'Longitude' in data:
+                image_coords.append(polar_to_cart(data['Altitude'], data['Latitude'], data['Longitude']))
 
 
 def polar_to_cart(alt, lat, long):
@@ -42,6 +44,11 @@ def polar_to_cart(alt, lat, long):
     cart_coords = [x_val, y_val, z_val]
 
     return cart_coords
+
+
+def get_dist(x1, y1, z1, x2, y2, z2):
+    dist = math.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2)
+    return dist
 
 
 if __name__ == '__main__':
