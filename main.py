@@ -5,7 +5,7 @@ import math
 
 PI = math.pi
 
-srt_path = "video/DJI_0301.SRT"
+srt_path = r"video\DJI_0301.SRT"
 img_path = r"D:\ARC Inductions 2019\4.1\images"
 images = "images\\"
 
