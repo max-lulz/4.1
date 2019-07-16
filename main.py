@@ -1,7 +1,8 @@
 import pysrt
-import os
-from GPSPhoto import gpsphoto
+import os                                                          # NEED TO FIND DIST, AND CLASSIFY
+from GPSPhoto import gpsphoto                                      # OPTIM IN DIST
 import math
+import xlsxwriter
 
 PI = math.pi
 
@@ -32,9 +33,10 @@ def get_img_data():
     for file in os.listdir(img_path):
         if file.endswith(".JPG"):
             data = gpsphoto.getGPSData(images + file)
-
             if 'Altitude' and 'Latitude' and 'Longitude' in data:
-                image_coords.append(polar_to_cart(data['Altitude'], data['Latitude'], data['Longitude']))
+                polar_cords = polar_to_cart(data['Altitude'], data['Latitude'], data['Longitude'])
+                polar_cords.append(file)
+                image_coords.append(polar_cords)
 
 
 def polar_to_cart(alt, lat, long):
@@ -46,11 +48,30 @@ def polar_to_cart(alt, lat, long):
     return cart_coords
 
 
-def get_dist(x1, y1, z1, x2, y2, z2):
-    dist = math.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2)
+def get_dist(pt1, pt2):
+    dist = math.sqrt((pt1[0] - pt2[0])**2 + (pt1[1] - pt2[1])**2 + (pt1[2] - pt2[2])**2)
     return dist
+
+
+def create_excel(sheet_name):
+    workbook = xlsxwriter.Workbook(sheet_name + '.xlsx')
+    worksheet = workbook.add_worksheet()
+
+    row = 0
+
+    for drone_pos in drone_coords:
+        worksheet.write(row, 0, time_stamp[row])
+        for img_pos in image_coords:
+            if get_dist(drone_pos, img_pos) > 35:
+                worksheet.insert_image(row, 1, images + img_pos[3])
+
+        row += 1
+        print(row)
+
+    workbook.close()
 
 
 if __name__ == '__main__':
     get_drone_data()
     get_img_data()
+    create_excel('project')
