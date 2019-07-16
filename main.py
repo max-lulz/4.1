@@ -58,15 +58,13 @@ def create_excel(sheet_name):
     worksheet = workbook.add_worksheet()
 
     row = 0
-
     for drone_pos in drone_coords:
         worksheet.write(row, 0, time_stamp[row])
         for img_pos in image_coords:
-            if get_dist(drone_pos, img_pos) > 35:
+            if get_dist(drone_pos, img_pos) < 35:
                 worksheet.insert_image(row, 1, images + img_pos[3])
 
         row += 1
-        print(row)
 
     workbook.close()
 
