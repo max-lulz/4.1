@@ -1,44 +1,56 @@
 import pysrt
-import os                                                          # NEED TO FIND DIST, AND CLASSIFY
-from GPSPhoto import gpsphoto                                      # OPTIM IN DIST
+import os
+from GPSPhoto import gpsphoto
 import math
 import xlsxwriter
+from geopy.distance import great_circle
 
 PI = math.pi
-
-srt_path = r"video\DJI_0301.SRT"
-img_path = r"D:\ARC Inductions 2019\4.1\images"
-images = "images\\"
-
-time_stamp = []
-srt_text = []
-drone_coords = []
-image_coords = []
+images = "Images\\"
 
 
-def get_drone_data():
-    pos_sub = pysrt.open(srt_path)
+# gets GPS and Time data from a .srt file and returns a list
+# containing that data for each position of the drone
+def get_drone_data(filepath):
+    drone_coords = []
+    pos_sub = pysrt.open(filepath)
+    for i, data in enumerate(pos_sub):
+        long, lat, alt = map(float, data.text.split(','))       # gets gps data from .srt text
+        start_time = data.start.seconds + data.start.milliseconds/1000
+        end_time = data.end.seconds + data.end.milliseconds/1000
+        time_stamp = "{} --> {}".format(start_time, end_time)
+        coords = {                                              # store individual data as a dict
+            "lat": lat,
+            "long": long,
+            "alt": alt,
+            "time": time_stamp,
+        }
+        drone_coords.append(coords)
 
-    for data in pos_sub:
-        srt_text.append(data.text)
-        time_stamp.append(data.start.seconds)
-
-    for text in srt_text:
-        text = text.replace(',0', '')
-        lat, long = map(float, text.split(','))
-        drone_coords.append(polar_to_cart(0, lat, long))
+    return drone_coords
 
 
-def get_img_data():
-    for file in os.listdir(img_path):
+# gets GPS data from the metadata of the images and returns a list
+# with that data and filename of image
+def get_img_data(image_path):
+    image_coords = []
+
+    for file in os.listdir(image_path):                         # iterate over files and find .JPG files
         if file.endswith(".JPG"):
             data = gpsphoto.getGPSData(images + file)
-            if 'Altitude' and 'Latitude' and 'Longitude' in data:
-                polar_cords = polar_to_cart(data['Altitude'], data['Latitude'], data['Longitude'])
-                polar_cords.append(file)
-                image_coords.append(polar_cords)
+            if 'Altitude' and 'Latitude' and 'Longitude' in data:       # for images w/o gps data
+                coords = {
+                    "lat": data['Latitude'],
+                    "long": data['Longitude'],
+                    "alt": data['Altitude'],
+                    "filename": file
+                }
+                image_coords.append(coords)
+
+    return image_coords
 
 
+# Obsolete as dist. is now calculated using polar coords
 def polar_to_cart(alt, lat, long):
     x_val = alt * math.cos((lat * PI) / 180) * math.cos((long * PI) / 180)
     y_val = alt * math.cos((lat * PI) / 180) * math.sin((long * PI) / 180)
@@ -48,30 +60,39 @@ def polar_to_cart(alt, lat, long):
     return cart_coords
 
 
-def get_dist(pt1, pt2):
-    dist = math.sqrt((pt1[0] - pt2[0])**2 + (pt1[1] - pt2[1])**2 + (pt1[2] - pt2[2])**2)
+# finds distance between 2 3D points using their polar coords
+def get_dist(drone_pos, image_pos):
+    drone_gps = (drone_pos["lat"], drone_pos["long"])
+    img_gps = (image_pos["lat"], image_pos["long"])
+
+    base = great_circle(drone_gps, img_gps).m                   # here, curvature of earth is ignored
+    height = abs(drone_pos["alt"] - image_pos["alt"])           # due to small distances and simplicity
+    dist = math.sqrt(base ** 2 + height ** 2)                   # of calculations
+
     return dist
 
 
-def create_excel(sheet_name):
-    workbook = xlsxwriter.Workbook(sheet_name + '.xlsx')
+# Classifies Images based on distance from current drone
+# position and stores in an Excel file
+def classify(excel_name, srt_path, img_path):
+    workbook = xlsxwriter.Workbook(excel_name + '.xlsx')
     worksheet = workbook.add_worksheet()
+    worksheet.write(0, 0, "Time(in seconds)")
+    worksheet.write(0, 1, "Images")
 
-    row = 0
+    drone_coords = get_drone_data(srt_path)
+    image_coords = get_img_data(img_path)
 
-    for drone_pos in drone_coords:
-        worksheet.write(row, 0, time_stamp[row])
+    for row, drone_pos in enumerate(drone_coords, 1):
+        worksheet.write(row, 0, drone_pos["time"])
         for img_pos in image_coords:
-            if get_dist(drone_pos, img_pos) > 35:
-                worksheet.insert_image(row, 1, images + img_pos[3])
-
-        row += 1
-        print(row)
+            if get_dist(drone_pos, img_pos) < 35:
+                worksheet.insert_image(row, 1, images + img_pos["filename"])
 
     workbook.close()
 
 
 if __name__ == '__main__':
-    get_drone_data()
-    get_img_data()
-    create_excel('project')
+    srtPath = r"Video\DJI_0301.SRT"
+    imgPath = r"D:\ARC Inductions 2019\4.1\Images"
+    classify('project', srtPath, imgPath)
