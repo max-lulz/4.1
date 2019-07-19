@@ -60,7 +60,7 @@ def polar_to_cart(alt, lat, long):
     return cart_coords
 
 
-# finds distance between 2 3D points using their polar coords
+# finds distance between 2 points in a 3D space using their polar coords
 def get_dist(drone_pos, image_pos):
     drone_gps = (drone_pos["lat"], drone_pos["long"])
     img_gps = (image_pos["lat"], image_pos["long"])
